@@ -1,0 +1,31 @@
+{
+  "criterion": "Gini",
+  "feature_importances": {
+    "company_revenue_usd": 0.08076923076923075,
+    "confidence_tier": 0.0,
+    "employee_count": -0.01794871794871795,
+    "incident_date_estimated": 0.0,
+    "industry_primary": 0.0,
+    "is_public_company": 0.0,
+    "quality_score": 0.0
+  },
+  "features": [
+    "company_revenue_usd",
+    "industry_primary",
+    "employee_count",
+    "is_public_company",
+    "incident_date_estimated",
+    "confidence_tier",
+    "quality_score"
+  ],
+  "max_depth": 5,
+  "metricas": {
+    "acuracia_teste": 0.5641025641025641,
+    "acuracia_treino": 0.6559485530546624,
+    "f1_teste": 0.4848484848484849,
+    "f1_treino": 0.610909090909091,
+    "n_teste": 156,
+    "n_treino": 622
+  },
+  "modelo": "DecisionTreeClassifier"
+}

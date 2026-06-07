@@ -1,0 +1,31 @@
+{
+  "criterion": "Entropy",
+  "feature_importances": {
+    "company_revenue_usd": 0.019230769230769183,
+    "confidence_tier": -0.0051282051282051985,
+    "employee_count": -0.02692307692307694,
+    "incident_date_estimated": -0.0012820512820512996,
+    "industry_primary": 0.0,
+    "is_public_company": 0.0,
+    "quality_score": -0.02179487179487183
+  },
+  "features": [
+    "company_revenue_usd",
+    "industry_primary",
+    "employee_count",
+    "is_public_company",
+    "incident_date_estimated",
+    "confidence_tier",
+    "quality_score"
+  ],
+  "max_depth": 10,
+  "metricas": {
+    "acuracia_teste": 0.5128205128205128,
+    "acuracia_treino": 0.7347266881028939,
+    "f1_teste": 0.4571428571428572,
+    "f1_treino": 0.7079646017699115,
+    "n_teste": 156,
+    "n_treino": 622
+  },
+  "modelo": "DecisionTreeClassifier"
+}

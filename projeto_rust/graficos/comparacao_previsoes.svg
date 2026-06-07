@@ -1,0 +1,61 @@
+<svg xmlns='http://www.w3.org/2000/svg' width='750' height='480'>
+<defs><linearGradient id='bg' x1='0' y1='0' x2='0' y2='1'><stop offset='0%' stop-color='#f8f9fa'/><stop offset='100%' stop-color='#e9ecef'/></linearGradient>
+<linearGradient id='g1' x1='0' y1='0' x2='0' y2='1'><stop offset='0%' stop-color='#e63946'/><stop offset='100%' stop-color='#c1121f'/></linearGradient>
+<linearGradient id='g2' x1='0' y1='0' x2='0' y2='1'><stop offset='0%' stop-color='#457b9d'/><stop offset='100%' stop-color='#1d3557'/></linearGradient>
+<linearGradient id='gg' x1='0' y1='0' x2='0' y2='1'><stop offset='0%' stop-color='#2d6a4f'/><stop offset='100%' stop-color='#1b4332'/></linearGradient>
+<filter id='sb'><feDropShadow dx='2' dy='2' stdDeviation='3' flood-opacity='0.25'/></filter></defs>
+<rect width='100%' height='100%' fill='url(#bg)'/>
+<text x='375' y='35' text-anchor='middle' font-size='22' font-weight='bold' fill='#1a1a2e'>Comparacao de Previsoes</text>
+<text x='375' y='55' text-anchor='middle' font-size='13' fill='#555'>Threshold: total_loss_usd &gt; 16585984 = Alto Impacto</text>
+
+<text x='190' y='85' text-anchor='middle' font-size='15' font-weight='bold' fill='#e63946'>Modelo 1 (Gini d=5)</text>
+<text x='560' y='85' text-anchor='middle' font-size='15' font-weight='bold' fill='#457b9d'>Modelo 2 (Entropy d=10)</text>
+
+<text x='50' y='120' font-size='13' font-weight='bold' fill='#333'>Acuracia</text>
+<rect x='190' y='105' width='208' height='22' fill='url(#g1)' rx='4' filter='url(#sb)'/>
+<text x='205' y='121' font-size='12' fill='white' font-weight='bold'>56.4%</text>
+<rect x='560' y='105' width='189' height='22' fill='url(#g2)' rx='4' filter='url(#sb)'/>
+<text x='575' y='121' font-size='12' fill='white' font-weight='bold'>51.3%</text>
+
+<text x='50' y='155' font-size='13' font-weight='bold' fill='#333'>Acertos (VP+VN)</text>
+<rect x='190' y='140' width='208' height='22' fill='url(#gg)' rx='4' filter='url(#sb)'/>
+<text x='205' y='156' font-size='12' fill='white'>88</text>
+<rect x='560' y='140' width='189' height='22' fill='url(#gg)' rx='4' filter='url(#sb)'/>
+<text x='575' y='156' font-size='12' fill='white'>80</text>
+
+<text x='50' y='190' font-size='13' font-weight='bold' fill='#333'>Erros (FP+FN)</text>
+<rect x='190' y='175' width='161' height='22' fill='#e63946' rx='4' filter='url(#sb)'/>
+<text x='205' y='191' font-size='12' fill='white'>68</text>
+<rect x='560' y='175' width='180' height='22' fill='#e63946' rx='4' filter='url(#sb)'/>
+<text x='575' y='191' font-size='12' fill='white'>76</text>
+
+<text x='50' y='225' font-size='13' font-weight='bold' fill='#333'>VP (acertou Alto)</text>
+<rect x='190' y='210' width='75' height='22' fill='#2d6a4f' rx='4' filter='url(#sb)'/>
+<text x='205' y='226' font-size='12' fill='white'>32</text>
+<rect x='560' y='210' width='75' height='22' fill='#2d6a4f' rx='4' filter='url(#sb)'/>
+<text x='575' y='226' font-size='12' fill='white'>32</text>
+
+<text x='50' y='260' font-size='13' font-weight='bold' fill='#333'>VN (acertou Baixo)</text>
+<rect x='190' y='245' width='132' height='22' fill='#457b9d' rx='4' filter='url(#sb)'/>
+<text x='205' y='261' font-size='12' fill='white'>56</text>
+<rect x='560' y='245' width='113' height='22' fill='#457b9d' rx='4' filter='url(#sb)'/>
+<text x='575' y='261' font-size='12' fill='white'>48</text>
+
+<text x='50' y='295' font-size='13' font-weight='bold' fill='#333'>FP (falso alarme)</text>
+<rect x='190' y='280' width='52' height='22' fill='#c1121f' rx='4' filter='url(#sb)'/>
+<text x='205' y='296' font-size='12' fill='white'>22</text>
+<rect x='560' y='280' width='71' height='22' fill='#c1121f' rx='4' filter='url(#sb)'/>
+<text x='575' y='296' font-size='12' fill='white'>30</text>
+
+<text x='50' y='330' font-size='13' font-weight='bold' fill='#333'>FN (falhou deteccao)</text>
+<rect x='190' y='315' width='109' height='22' fill='#e63946' rx='4' filter='url(#sb)'/>
+<text x='205' y='331' font-size='12' fill='white'>46</text>
+<rect x='560' y='315' width='109' height='22' fill='#e63946' rx='4' filter='url(#sb)'/>
+<text x='575' y='331' font-size='12' fill='white'>46</text>
+
+<text x='375' y='375' text-anchor='middle' font-size='14' font-weight='bold' fill='#1a1a2e'>Legenda</text>
+<rect x='230' y='395' width='14' height='14' fill='#2d6a4f' rx='2'/><text x='248' y='407' font-size='12' fill='#333'>VP</text>
+<rect x='295' y='395' width='14' height='14' fill='#457b9d' rx='2'/><text x='313' y='407' font-size='12' fill='#333'>VN</text>
+<rect x='360' y='395' width='14' height='14' fill='#c1121f' rx='2'/><text x='378' y='407' font-size='12' fill='#333'>FP</text>
+<rect x='425' y='395' width='14' height='14' fill='#e63946' rx='2'/><text x='443' y='407' font-size='12' fill='#333'>FN</text>
+</svg>

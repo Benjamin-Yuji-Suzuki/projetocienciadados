@@ -1,0 +1,7 @@
+projeto,etapa,tempo_segundos
+PySpark,Bronze,9.3323
+PySpark,Prata,7.1001
+PySpark,EDA,2.234
+PySpark,Ouro,0.4943
+PySpark,ML,0.7571
+PySpark,total,19.9178

@@ -1,0 +1,33 @@
+{
+  "modelo": "DecisionTreeClassifier",
+  "criterio": [
+    "Gini",
+    "Entropy"
+  ],
+  "max_depth": [
+    5,
+    10
+  ],
+  "features": [
+    "company_revenue_usd",
+    "employee_count",
+    "confidence_tier",
+    "quality_score"
+  ],
+  "metricas_modelo1": {
+    "acuracia_treino": 0.6849,
+    "f1_treino": 0.6512,
+    "acuracia_teste": 0.5577,
+    "f1_teste": 0.4889,
+    "n_treino": 622,
+    "n_teste": 156
+  },
+  "metricas_modelo2": {
+    "acuracia_treino": 0.7621,
+    "f1_treino": 0.7289,
+    "acuracia_teste": 0.5,
+    "f1_teste": 0.4091,
+    "n_treino": 622,
+    "n_teste": 156
+  }
+}

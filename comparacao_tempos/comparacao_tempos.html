@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head><meta charset="UTF-8">
+<title>Comparação de Tempos</title>
+<style>
+  body { font-family: 'Segoe UI', sans-serif; background: #0f0f23; color: #eee; padding: 40px; }
+  h1 { color: #e94560; text-align: center; }
+  table { width: 100%; border-collapse: collapse; margin: 20px auto; max-width: 900px; }
+  th { background: #e94560; color: #fff; padding: 10px; }
+  td { padding: 8px; border-bottom: 1px solid #333; text-align: center; }
+  tr:hover { background: #1a1a3e; }
+  .rust { color: #e94560; font-weight: bold; }
+  .pyspark { color: #457b9d; font-weight: bold; }
+  .numba { color: #2a9d8f; font-weight: bold; }
+  img { display: block; margin: 30px auto; max-width: 1000px; border-radius: 12px; box-shadow: 0 0 30px rgba(233,69,96,0.2); }
+</style></head>
+<body>
+<h1>⏱ Comparação de Tempos de Execução</h1>
+<img src="comparacao_tempos.svg" alt="Gráfico de barras comparativo">
+<table>
+<thead><tr><th>Etapa</th><th>Rust</th><th>PySpark</th><th>PySpark+Numba</th></tr></thead><tbody><tr><td><strong>Bronze</strong></td><td class="rust">0.0540s</td><td class="pyspark">4.1624s</td><td class="numba">4.2624s</td></tr><tr><td><strong>Prata</strong></td><td class="rust">0.0088s</td><td class="pyspark">0.8663s</td><td class="numba">0.8500s</td></tr><tr><td><strong>EDA</strong></td><td class="rust">0.0027s</td><td class="pyspark">0.9971s</td><td class="numba">1.0534s</td></tr><tr><td><strong>Ouro</strong></td><td class="rust">0.0177s</td><td class="pyspark">0.1733s</td><td class="numba">0.7469s</td></tr><tr><td><strong>ML</strong></td><td class="rust">0.0336s</td><td class="pyspark">0.0237s</td><td class="numba">0.0210s</td></tr></tbody></table><p style="text-align:center;color:#888;">Gerado automaticamente pelo comparador de tempos</p></body></html>
