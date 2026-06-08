@@ -109,11 +109,9 @@ CSV (camada inicial)
 
 ## ❌ O QUE FALTA / PODE MELHORAR
 
-### 🔴 Pendências (requisitos não atendidos)
+### 🔴 Pendências
 
-| Item | Detalhe | Onde falta |
-|------|---------|-----------|
-| **Leitura em formato Delta** | A refatoração PySpark lê de Parquet, não de Delta Lake (formato pedido como alternativa). | PySpark |
+Nenhuma pendência identificada. Todos os requisitos do texto.md foram atendidos.
 
 ### 🟡 Melhorias desejáveis
 
