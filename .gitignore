@@ -1,5 +1,28 @@
+# Python
 .venv/
 __pycache__/
 *.pyc
 *.pyo
+.ipynb_checkpoints/
+
+# Rust (build)
 target/
+
+# OpenCode config
+.opencode/
+
+# Generated output — Bronze / Prata / Ouro
+**/camada_bronze/
+**/camada_prata/
+**/camada_ouro/
+
+# Generated graphs, predictions, models
+**/graficos/
+**/previsoes/
+**/modelos/
+
+# Duplicate input data (originais em "camada inicial/")
+projeto_rust/camada_inicial/
+
+# Benchmark CSVs (regenerados a cada execução)
+comparacao_tempos/tempos_*.csv

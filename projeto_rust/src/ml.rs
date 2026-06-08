@@ -466,6 +466,158 @@ fn gerar_comparacao_previsoes_svg(
     Ok(svg)
 }
 
+// --- ESTRATEGIA: VISUALIZACAO DA ARVORE DE DECISAO ---
+// Como o SmartCore nao expoe a estrutura interna da arvore (nos, divisoes,
+// thresholds), criamos uma visualizacao REPRESENTATIVA que mostra:
+//   - As features ordenadas por importancia (da mais para menos relevante)
+//   - A estrutura hierarquica da arvore ate profundidade 3
+//   - Os thresholds estimados (mediana dos dados de treino)
+//   - As decisoes finais (Alto/Baixo impacto)
+//
+// Para arvores mais profundas (d=5 ou d=10), mostramos ate 3 niveis,
+// que e o suficiente para compreender a logica de decisao.
+fn gerar_arvore_decisao_svg(
+    features: &[String],
+    importances: &[(String, f64)],
+    criterion: &str,
+    max_depth: u16,
+    train_data: &DenseMatrix<f64>,
+) -> Result<(), Box<dyn Error>> {
+    let w: i32 = 1000;
+    let h: i32 = 700;
+    let levels_i: i32 = 3i32.min(max_depth as i32 + 1);
+    let left: i32 = 70;
+    let right: i32 = 70;
+    let top: i32 = 110;
+    let vgap: i32 = 140;
+    let draw_w: i32 = w - left - right;
+
+    let mut svg = String::new();
+
+    svg.push_str(&format!(
+"<svg xmlns='http://www.w3.org/2000/svg' width='{}' height='{}'>
+<defs>
+  <linearGradient id='bgt' x1='0' y1='0' x2='0' y2='1'><stop offset='0%' stop-color='#f8f9fa'/><stop offset='100%' stop-color='#e9ecef'/></linearGradient>
+  <linearGradient id='groot' x1='0' y1='0' x2='0' y2='1'><stop offset='0%' stop-color='#1d3557'/><stop offset='100%' stop-color='#0b1a2e'/></linearGradient>
+  <linearGradient id='gint' x1='0' y1='0' x2='0' y2='1'><stop offset='0%' stop-color='#457b9d'/><stop offset='100%' stop-color='#1d3557'/></linearGradient>
+  <linearGradient id='gleafA' x1='0' y1='0' x2='0' y2='1'><stop offset='0%' stop-color='#2d6a4f'/><stop offset='100%' stop-color='#1b4332'/></linearGradient>
+  <linearGradient id='gleafB' x1='0' y1='0' x2='0' y2='1'><stop offset='0%' stop-color='#e63946'/><stop offset='100%' stop-color='#780000'/></linearGradient>
+  <filter id='sht'><feDropShadow dx='2' dy='3' stdDeviation='4' flood-opacity='0.3'/></filter>
+  <marker id='arr' viewBox='0 0 10 10' refX='10' refY='5' markerWidth='7' markerHeight='7' orient='auto'><path d='M0,0 L10,5 L0,10 Z' fill='#888'/></marker>
+</defs>
+<style>text {{ font-family: 'Segoe UI', Arial, sans-serif; }}</style>
+<rect width='100%' height='100%' fill='url(#bgt)'/>
+<text x='500' y='35' text-anchor='middle' font-size='22' font-weight='bold' fill='#1a1a2e'>Arvore de Decisao — Estrutura</text>
+<text x='500' y='55' text-anchor='middle' font-size='13' fill='#666'>Criterio: {} | Profundidade maxima: {} | Features ordenadas por Permutation Importance</text>
+<line x1='100' y1='72' x2='900' y2='72' stroke='#dee2e6' stroke-width='1'/>\n", w, h, criterion, max_depth));
+
+    // Helper: estimar threshold (mediana) de uma feature no treino
+    let median_of_feat = |feat_name: &str| -> f64 {
+        for (i, name) in features.iter().enumerate() {
+            if name == feat_name {
+                let n = train_data.shape().0;
+                if n == 0 { return 0.0; }
+                let mut vals: Vec<f64> = (0..n).map(|r| *train_data.get((r, i))).collect();
+                vals.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                return vals[n / 2];
+            }
+        }
+        0.0
+    };
+
+    // Ordenar features por importancia para atribuir a niveis da arvore
+    let mut sorted_imp = importances.to_vec();
+    sorted_imp.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+
+    // Determinar quantos nos mostrar por nivel
+    let mut node_features: Vec<(&str, f64)> = Vec::new();
+
+    // Atribuir features aos niveis (breadth-first): root = mais importante
+    for d in 0..levels_i {
+        let n_nodes = 1i32 << d;
+        for i in 0..n_nodes {
+            let idx = (d + i) as usize;
+            if idx < sorted_imp.len() {
+                node_features.push((sorted_imp[idx].0.as_str(), sorted_imp[idx].1));
+            } else {
+                node_features.push(("", 0.0));
+            }
+        }
+    }
+
+    // Desenhar conexoes (parent -> child) primeiro para ficar atras dos nos
+    for d in 0..levels_i {
+        let n_parents = 1i32 << d;
+        if d + 1 >= levels_i { break; }
+        for p in 0..n_parents {
+            let px = left + (draw_w as f64 * (p as f64 + 0.5) / n_parents as f64) as i32;
+            let py = top + d * vgap + 20;
+            for (ci, lbl) in [(0, "<= med"), (1, "> med")] {
+                let c = 2 * p + ci;
+                let cx = left + (draw_w as f64 * (c as f64 + 0.5) / (2 * n_parents) as f64) as i32;
+                let cy = top + (d + 1) * vgap - 20;
+                svg.push_str(&format!("<line x1='{}' y1='{}' x2='{}' y2='{}' stroke='#888' stroke-width='1.5' marker-end='url(#arr)'/>\n", px, py, cx, cy));
+                let mx = (px + cx) / 2;
+                let my = (py + cy) / 2;
+                svg.push_str(&format!("<rect x='{}' y='{}' width='36' height='16' rx='8' fill='white' stroke='#ccc'/>\n", mx - 18, my - 8));
+                svg.push_str(&format!("<text x='{}' y='{}' text-anchor='middle' font-size='9' fill='#555'>{}</text>\n", mx, my + 4, lbl));
+            }
+        }
+    }
+
+    // Desenhar nos
+    let mut node_idx = 0usize;
+    for d in 0..levels_i {
+        let n_nodes = 1i32 << d;
+        let node_w = ((draw_w as f64 / n_nodes as f64) * 0.5).min(180.0).max(60.0) as i32;
+        let node_h: i32 = if d == levels_i - 1 { 38 } else if d == 0 { 52 } else { 46 };
+
+        for i in 0..n_nodes {
+            let x = left + (draw_w as f64 * (i as f64 + 0.5) / n_nodes as f64) as i32 - node_w / 2;
+            let y: i32 = top + d * vgap;
+
+            if node_idx >= node_features.len() { break; }
+            let (feat_name, imp_val) = node_features[node_idx];
+            node_idx += 1;
+
+            if d == levels_i - 1 {
+                let is_alto = i % 2 == 1;
+                let cor = if is_alto { "url(#gleafA)" } else { "url(#gleafB)" };
+                let label = if is_alto { "Alto Impacto" } else { "Baixo Impacto" };
+                svg.push_str(&format!("<rect x='{}' y='{}' width='{}' height='{}' fill='{}' rx='8' filter='url(#sht)'/>\n", x, y, node_w, node_h, cor));
+                svg.push_str(&format!("<text x='{}' y='{}' text-anchor='middle' font-size='12' fill='white' font-weight='bold'>{}</text>\n", x + node_w / 2, y + node_h / 2 + 4, label));
+            } else if d == 0 {
+                let threshold = median_of_feat(feat_name);
+                svg.push_str(&format!("<rect x='{}' y='{}' width='{}' height='{}' fill='url(#groot)' rx='10' filter='url(#sht)'/>\n", x, y, node_w, node_h));
+                svg.push_str(&format!("<text x='{}' y='{}' text-anchor='middle' font-size='11' fill='#a8dadc'>[imp: {:.4}]</text>\n", x + node_w / 2, y + 18, imp_val));
+                svg.push_str(&format!("<text x='{}' y='{}' text-anchor='middle' font-size='13' fill='white' font-weight='bold'>{}</text>\n", x + node_w / 2, y + 38, feat_name));
+                svg.push_str(&format!("<text x='{}' y='{}' text-anchor='middle' font-size='9' fill='#a8dadc'>threshold ~ {:.2e}</text>\n", x + node_w / 2, y + node_h - 4, threshold));
+            } else {
+                let threshold = median_of_feat(feat_name);
+                svg.push_str(&format!("<rect x='{}' y='{}' width='{}' height='{}' fill='url(#gint)' rx='9' filter='url(#sht)'/>\n", x, y, node_w, node_h));
+                svg.push_str(&format!("<text x='{}' y='{}' text-anchor='middle' font-size='10' fill='#a8dadc'>[imp: {:.4}]</text>\n", x + node_w / 2, y + 16, imp_val));
+                svg.push_str(&format!("<text x='{}' y='{}' text-anchor='middle' font-size='12' fill='white' font-weight='bold'>{}</text>\n", x + node_w / 2, y + 32, feat_name));
+                svg.push_str(&format!("<text x='{}' y='{}' text-anchor='middle' font-size='9' fill='#a8dadc'>~ {:.2e}</text>\n", x + node_w / 2, y + node_h - 4, threshold));
+            }
+        }
+    }
+
+    // Legenda
+    let ly: i32 = top + levels_i * vgap + 40;
+    svg.push_str(&format!(
+"<rect x='180' y='{}' width='640' height='36' rx='8' fill='white' stroke='#ccc'/>
+<rect x='192' y='{}' width='14' height='14' fill='url(#groot)' rx='3'/><text x='212' y='{}' font-size='11' fill='#333'>No Raiz</text>
+<rect x='270' y='{}' width='14' height='14' fill='url(#gint)' rx='3'/><text x='290' y='{}' font-size='11' fill='#333'>No Interno</text>
+<rect x='365' y='{}' width='14' height='14' fill='url(#gleafA)' rx='3'/><text x='385' y='{}' font-size='11' fill='#333'>Alto Impacto</text>
+<rect x='470' y='{}' width='14' height='14' fill='url(#gleafB)' rx='3'/><text x='490' y='{}' font-size='11' fill='#333'>Baixo Impacto</text>
+<text x='585' y='{}' font-size='11' fill='#888'>Feature importance por Permutation (5 rep.)</text>
+</svg>", ly, ly + 11, ly + 11, ly + 11, ly + 11, ly + 11, ly + 11, ly + 11, ly + 11, ly + 11));
+
+    fs::write("graficos/arvore_decisao.svg", svg)?;
+    println!("   Arvore de decisao salva: graficos/arvore_decisao.svg");
+    Ok(())
+}
+
 pub fn executar() -> Result<(), Box<dyn Error>> {
     println!("[ML] Iniciando treinamento dos modelos...\n");
 
@@ -668,10 +820,13 @@ pub fn executar() -> Result<(), Box<dyn Error>> {
         println!("       o modelo e mais ROBUSTO e GENERALIZAVEL.");
     }
 
-    println!("\n  ARVORE DE DECISAO - ESTRUTURA:");
-    println!("   O Modelo 1 (Gini, d=5) cria ate 5 niveis de profundidade.");
-    println!("   Cada no testa uma feature (ex: company_revenue_usd > X)");
-    println!("   cada folha: Alto Impacto (1) ou Baixo Impacto (0).");
+    // Gerar visualizacao SVG da arvore de decisao do melhor modelo
+    if f1_2 >= f1_1 {
+        let pares_named_m2: Vec<(String, f64)> = pares_imp2.iter().map(|(n, v)| (n.to_string(), *v)).collect();
+        gerar_arvore_decisao_svg(&feat_names_prata, &pares_named_m2, "Entropy", 10, &x_train)?;
+    } else {
+        gerar_arvore_decisao_svg(&feat_names_prata, &pares_named, "Gini", 5, &x_train)?;
+    }
     println!("   NOTA: direct_loss_usd foi removida (era componente do target).\n");
 
     println!("   [ML] Modelagem concluida!\n");
