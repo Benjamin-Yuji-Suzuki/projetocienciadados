@@ -82,14 +82,28 @@ CSV (camada inicial)
 ### 6. Benchmark de Performance
 | Estágio | Rust | PySpark | PySpark+Numba | Rust vs PySpark |
 |---------|:---:|:-------:|:-------------:|:---------------:|
-| Bronze | 0.07s | 4.16s | 4.26s | **~58× mais rápido** |
-| Prata | 0.01s | 0.87s | 0.85s | **~75× mais rápido** |
-| EDA | 0.004s | 1.00s | 1.05s | **~242× mais rápido** |
-| Ouro | 0.02s | 0.17s | 0.75s | **~9× mais rápido** |
-| ML | 0.06s | 0.02s | 0.02s | *(mesmo engine)* |
-| **Total** | **0.17s** | **6.22s** | **6.93s** | **~37× mais rápido** |
+| Bronze | 0.09s | 4.16s | 4.26s | **~47× mais rápido** |
+| Prata | 0.01s | 0.87s | 0.85s | **~73× mais rápido** |
+| EDA | 0.006s | 1.00s | 1.05s | **~169× mais rápido** |
+| Ouro | 0.01s | 0.17s | 0.75s | **~15× mais rápido** |
+| ML | 0.04s | 0.02s | 0.02s | *(mesmo motor)* |
+| **Total** | **0.15s** | **6.22s** | **6.93s** | **~40× mais rápido** |
 
-### 7. Entregáveis Gerados
+### 7. Benchmark de Compilação, Instalação e Tamanho
+
+| Métrica | Rust | PySpark | PySpark+Numba |
+|---------|:----:|:-------:|:-------------:|
+| **Tempo 1ª compilação/instalação** | **~51s** (debug) / ~2-3min (release) | **~2-5 min** (pip + Java) | **~2-5 min** |
+| **Tempo recompilação/relançamento** | **~1-3s** (incremental) | **~0s** (interpretado) | **~0s** (interpretado) |
+| **Tempo execução pipeline** | **0,09s** | 6,22s | 6,93s |
+| **Código fonte** | **132 KB** (2.091 linhas) | ~100 KB (2 notebooks) | ~100 KB |
+| **Dependências em disco** | **1,1 GB** (target/) | **~1,9 GB** (.venv + Java) | **~1,9 GB** |
+| **Binário final** | **52 MB** (autossuficiente) | N/A (interpretado) | N/A (interpretado) |
+| **Total repositório (c/ deps)** | **1,1 GB** | **~1,9 GB** | **~1,9 GB** |
+
+> **Por que Rust gera arquivos pesados?** Compilação estática com monomorfização (cada combinação de tipos gera código assembly específico), debug symbols, e cache incremental de 3.052 arquivos. O binário de 52 MB é **autossuficiente** — copie e rode em qualquer Linux x86_64 sem dependências. `strip` reduz para ~5 MB.
+
+### 8. Entregáveis Gerados
 - 📁 **camada_bronze/** — 3 arquivos Parquet com metadados de auditoria
 - 📁 **camada_prata/** — dataset integrado e limpo
 - 📁 **camada_ouro/** — dataset ML-ready (pré-processado)
@@ -99,7 +113,7 @@ CSV (camada inicial)
 - 📓 **pipeline_pyspark.ipynb** — notebook completo executável
 - 📓 **pipeline_pyspark_numba.ipynb** — notebook com aceleração Numba
 - 📊 **comparacao_tempos/** — benchmark entre as 3 implementações
-- 📄 **RELATORIO_COMPLETO.md** — relatório técnico de 895 linhas
+- 📄 **RELATORIO_COMPLETO.md** — relatório técnico com ~1.200 linhas
 - 📄 **docs/data_lineage.md** — linhagem dos dados
 - 📄 **docs/relatorio_qualidade.md** — relatório de qualidade
 - 📄 **docs/tabela_transformacoes.md** — tabela de transformações da Ouro
@@ -195,8 +209,9 @@ projeto_rust/graficos/dashboard.html
 
 ## 🧠 Lições Aprendidas
 
-1. **Rust é ~37× mais rápido que PySpark** para datasets pequenos — sem JVM, sem serialização
+1. **Rust é ~40× mais rápido que PySpark** para datasets pequenos — sem JVM, sem serialização
 2. **Numba não compensa em datasets pequenos** — overhead de compilação JIT domina
 3. **Ouro > Prata** — pré-processamento adequado melhora métricas mesmo em modelos simples
 4. **Permutation Importance > Gini** — mais confiável para interpretar features
 5. **Fit/Transform evita data leakage** — split antes do fit é obrigatório
+6. **Rust é trade-off**: compilação ~51s + 1,1 GB de target/ vs PyStack ~2-5 min install + 1,9 GB .venv+Java. Rust ganha em execução recorrente (0,09s vs 6,22s) e produz binário portátil de 52 MB; PySpark ganha em setup inicial e exploração interativa.

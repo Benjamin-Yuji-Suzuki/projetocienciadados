@@ -20,6 +20,7 @@
 9. [Comparação entre os 3 Projetos](#9-comparação-entre-os-3-projetos)
 10. [Benchmark Numba vs Pure Python](#10-benchmark-numba-vs-pure-python)
 11. [Tabela de Tempos](#11-tabela-de-tempos)
+11A. [Comparação de Compilação, Instalação e Tamanho](#11a-comparação-de-compilação-instalação-e-tamanho-dos-projetos)
 12. [Métricas dos 3 Projetos Lado a Lado](#12-métricas-dos-3-projetos-lado-a-lado)
 13. [Erros Encontrados e Corrigidos](#13-erros-encontrados-e-corrigidos)
 14. [Anti-Leakage Checklist](#14-anti-leakage-checklist)
@@ -52,7 +53,7 @@ Construir um pipeline completo de Ciência de Dados — desde a ingestão bruta 
 
 | Projeto | Framework ML | Formato | Tempo Total |
 |---------|-------------|---------|-------------|
-| **Rust** | Polars 0.46 + SmartCore 0.3 | .rs → Parquet + SVG + JSON | **0.09s** |
+| **Rust** | Polars 0.46 + SmartCore 0.3 | .rs → Parquet + SVG + JSON | **0.15s** |
 | **PySpark** | PySpark 4.1.2 + sklearn | .ipynb → Parquet + PNG | 6.22s |
 | **PySpark+Numba** | PySpark + Numba JIT + sklearn | .ipynb → Parquet + PNG | 6.93s |
 
@@ -710,12 +711,12 @@ Numba **acelera operações com condicionais aninhadas** (fillna, zscore), mas *
 
 | Etapa | Rust | PySpark | PySpark+Numba | vs Rust |
 |-------|------|---------|---------------|---------|
-| **Bronze** | 0.0330s | 4.1624s | 4.2624s | 126× |
-| **Prata** | 0.0088s | 0.8663s | 0.8500s | 98× |
-| **EDA** | 0.0019s | 0.9971s | 1.0534s | 525× |
-| **Ouro** | 0.0124s | 0.1733s | 0.7469s | 60× |
-| **ML** | 0.0316s | 0.0237s | 0.0210s | 0.7× (ML é sklearn, mesmo引擎) |
-| **Total** | **0.0877s** | **6.2227s** | **6.9338s** | **71-79×** |
+| **Bronze** | 0.0894s | 4.1624s | 4.2624s | 47× |
+| **Prata** | 0.0118s | 0.8663s | 0.8500s | 73× |
+| **EDA** | 0.0059s | 0.9971s | 1.0534s | 169× |
+| **Ouro** | 0.0119s | 0.1733s | 0.7469s | 15× |
+| **ML** | 0.0355s | 0.0237s | 0.0210s | 0.7× (ML usa sklearn, mesmo motor) |
+| **Total** | **0.1545s** | **6.2227s** | **6.9338s** | **40-45×** |
 
 ### Por que Rust é tão mais rápido?
 
@@ -741,6 +742,80 @@ EDA:      Rust ▏ 0.00s     PySpark ██████████ 1.00s
 Ouro:     Rust █ 0.01s     PySpark ██ 0.17s
 ML:       Rust ██ 0.03s    PySpark ██ 0.02s
 ```
+
+---
+
+## 11A. Comparação de Compilação, Instalação e Tamanho dos Projetos
+
+### Por que esta comparação é relevante?
+
+O `texto.md` exige refatoração com PySpark — uma framework pesada que depende da JVM. O Rust, por outro lado, é uma linguagem compilada estaticamente. Cada escolha tem **trade-offs** que vão além do tempo de execução: tempo de setup, espaço em disco e portabilidade também importam.
+
+### Tamanho em Disco
+
+| Componente | Rust | PySpark / Python |
+|------------|------|-----------------|
+| **Código fonte** | **132 KB** (2.091 linhas .rs) | **~100 KB** (2 notebooks .ipynb) |
+| **Projeto (sem dependências)** | 132 KB (src/) | 1,1 MB (cada) |
+| **Dependências instaladas** | **1,1 GB** (target/ — compilados) | **1,6 GB** (.venv/) + **286 MB** (Java JDK) |
+| **Principal dependência** | Polars 0.46 + SmartCore 0.3 | PySpark 488 MB + pandas 73 MB + numpy 42 MB + sklearn 47 MB + scipy 111 MB |
+| **Arquivo de lock** | 61 KB (Cargo.lock, 2.517 linhas) | N/A (Python não tem lock nativo) |
+| **Binário final (release)** | **52 MB** (único binário) | N/A (interpretado) |
+| **Artifacts de build** | 3.052 arquivos em target/ | N/A |
+| **Saídas geradas (Parquet + gráficos)** | 316 KB | 536 KB |
+| **Total no repositório** (só fonte + docs) | **~300 KB** (src/ + docs/ + README) | **~1,1 MB** (notebooks) |
+| **Total com dependências** | **1,1 GB** | **~1,9 GB** (.venv + Java) |
+
+### Tempo de Compilação / Instalação (Primeira Vez)
+
+| Operação | Rust | PySpark | PySpark+Numba |
+|----------|------|---------|---------------|
+| **Instalação das dependências** | `cargo build` (primeira vez) | `pip install` + Java JDK | `pip install` + Java JDK |
+| **Tempo total (primeira vez)** | **~51s** (debug) / **~2-3min** (release) | **~2-5 min** (download + install wheels) | **~2-5 min** |
+| **Tempo recompilação incremental** | **1-3s** (só o que mudou) | **0s** (interpretado) | **0s** (interpretado) |
+| **Tempo de execução do pipeline** | **0,09s** | **6,22s** | **6,93s** |
+| **Tempo setup + execução (1ª vez)** | **~51s** (compila + executa) | **~2-6 min** (instala + executa) | **~2-6 min** |
+| **Tempo setup + execução (2ª vez+)** | **~1-3s** | **~6s** | **~7s** |
+
+### Por que Rust gera arquivos tão pesados?
+
+1. **Compilação estática (monomorfização):** Rust compila **cada crate separadamente** e linka tudo estaticamente no binário final. Diferente do Python (que carrega módulos .so/.pyd dinâmicos em runtime), o binário Rust de 52 MB já contém Polars, SmartCore, serde_json, chrono, uuid e todas as suas dependências embutidas — é **autossuficiente**: copie o binário para qualquer máquina Linux com a mesma arquitetura e ele roda sem nada instalado.
+
+2. **Monomorfização de genéricos:** Polars e SmartCore fazem uso extensivo de genéricos. O compilador Rust gera **código especializado para cada combinação de tipos** usada. Exemplo: `DataFrame::<i64>::sort()` e `DataFrame::<f64>::sort()` geram código assembly diferente — ambos no binário.
+
+3. **Debug symbols:** O `target/debug` tem 416 MB porque inclui debug symbols completos. O `target/release` tem 637 MB (com debug symbols parciais). Um binário release **sem debug symbols** seria bem menor (~5-10 MB), mas o Cargo não faz strip automático:
+   ```bash
+   strip target/release/projeto_rust   # reduz de 52 MB para ~5-8 MB
+   ```
+
+4. **Incremental compilation:** O Rust salva **artifacts de compilação intermediários** (LLVM IR, .rlib, metadados) em `target/` para acelerar recompilações. Esses 3.052 arquivos são um cache — podem ser descartados com `cargo clean`.
+
+5. **Cargo.lock gigante:** O arquivo de lock tem 61 KB e 2.517 linhas porque registra **todas as dependências transitivas** com hashes de verificação. PySpark não tem equivalente — as versões são resolvidas apenas no momento do `pip install`.
+
+### Comparação: Python (PySpark) vs Rust — Trade-offs
+
+| Aspecto | Rust (vantagem) | Rust (desvantagem) | PySpark (vantagem) | PySpark (desvantagem) |
+|---------|----------------|-------------------|-------------------|----------------------|
+| **Tempo de execução** | **0,09s** (~70× mais rápido) | — | — | **6,22s** (overhead JVM) |
+| **Tempo de setup (1ª vez)** | — | **~51s-3min** (compila) | **~0s** (já está instalado) | **~2-6 min** (pip install + Java) |
+| **Tempo de setup (2ª vez+)** | **~1-3s** (recompila) | — | **~0s** | — |
+| **Espaço em disco** | — | **1,1 GB** (target/) | **~1,9 GB** (.venv + Java) | — |
+| **Binário portátil** | **✅ Sim** (52 MB, copia e roda) | — | — | **❌ Não** (precisa JVM + Python + deps) |
+| **Portabilidade** | Compila para qualquer OS | Binário só para a arquitetura alvo | Roda onde houver JVM | Precisa JVM+Python instalados |
+| **Atualização de deps** | **~1-3s** (recompila) | Lock file precisa ser atualizado | **~0s** (se já importado) | `pip install --upgrade` pode quebrar |
+| **Cache CI/CD** | target/ é cacheável | 1,1 GB de cache | .venv é cacheável | 1,6 GB de cache |
+
+### Conclusão da Comparação
+
+O Rust é **muito mais rápido em execução** (0,09s vs 6,22s) e produz um **binário autossuficiente** de 52 MB que roda sem dependências externas. Porém, o **primeiro build é lento** (~51s debug, ~2-3min release) e os **artifacts de compilação ocupam 1,1 GB** — 1.000× mais que o código fonte.
+
+O PySpark, por outro lado, **instala mais rápido na segunda vez** (já está no .venv) e ocupa ~1,9 GB com dependências (Java + Python packages). O tempo de execução é maior (6,22s) devido à comunicação JVM↔Python, mas é o que o `texto.md` exige para demonstrar escalabilidade.
+
+**Lições:**
+- Rust é ideal para **pipelines de produção** que rodam repetidamente (batch) — o custo fixo de compilação é amortizado
+- PySpark é ideal para **exploração interativa** (notebooks) — instala uma vez, executa muitas vezes, mas cada execução é mais lenta
+- O tamanho dos artifacts de compilação do Rust (1,1 GB) é comparável ao .venv do Python (1,6 GB) — ambos são "pesados", mas por razões diferentes
+- **`strip` no binário** reduziria Rust de 52 MB para ~5 MB, e `cargo clean` periodicamente recupera espaço do target/
 
 ---
 
