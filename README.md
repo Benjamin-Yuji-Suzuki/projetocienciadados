@@ -73,11 +73,13 @@ CSV (camada inicial)
 - Feature importance (Permutation × 5 repetições)
 - **Comparação Prata vs Ouro** — melhoria de ~5pp no F1
 
-### 5. Refatoração com PySpark
-- Leitura em Parquet
-- Operações: JOIN, groupBy + agregação, **Window function**
-- Escrita em Parquet
-- Comparação de tempo de execução PySpark vs Pandas
+### 5. Refatoração com PySpark ✅ (todos os requisitos do texto.md)
+- Leitura em Parquet (Bronze, Prata, Ouro)
+- INNER JOIN entre incidents_master e financial_impact
+- **groupBy com agregação** (PySpark puro, sem toPandas) — média/max de perda por setor
+- **Window function** — `row_number()` ranqueia incidentes dentro de cada setor
+- Escrita em Parquet (Bronze, Prata)
+- **Comparação Pandas vs PySpark**: mesmo INNER JOIN medido em ambos — PySpark 0,32s vs Pandas 0,02s (Pandas ~20× mais rápido para 778 linhas, PySpark ganha em escala)
 
 ### 6. Benchmark de Performance
 | Estágio | Rust | PySpark | PySpark+Numba | Rust vs PySpark |

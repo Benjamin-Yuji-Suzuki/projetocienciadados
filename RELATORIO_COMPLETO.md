@@ -21,6 +21,7 @@
 10. [Benchmark Numba vs Pure Python](#10-benchmark-numba-vs-pure-python)
 11. [Tabela de Tempos](#11-tabela-de-tempos)
 11A. [Comparação de Compilação, Instalação e Tamanho](#11a-comparação-de-compilação-instalação-e-tamanho-dos-projetos)
+11B. [Refatoração PySpark — Conformidade com texto.md](#11b-refatoração-pyspark--demonstração-de-conformidade-com-o-textomd)
 12. [Métricas dos 3 Projetos Lado a Lado](#12-métricas-dos-3-projetos-lado-a-lado)
 13. [Erros Encontrados e Corrigidos](#13-erros-encontrados-e-corrigidos)
 14. [Anti-Leakage Checklist](#14-anti-leakage-checklist)
@@ -816,6 +817,113 @@ O PySpark, por outro lado, **instala mais rápido na segunda vez** (já está no
 - PySpark é ideal para **exploração interativa** (notebooks) — instala uma vez, executa muitas vezes, mas cada execução é mais lenta
 - O tamanho dos artifacts de compilação do Rust (1,1 GB) é comparável ao .venv do Python (1,6 GB) — ambos são "pesados", mas por razões diferentes
 - **`strip` no binário** reduziria Rust de 52 MB para ~5 MB, e `cargo clean` periodicamente recupera espaço do target/
+
+---
+
+## 11B. Refatoração PySpark — Demonstração de Conformidade com o texto.md
+
+### O que o texto.md exige?
+
+> "O grupo deverá refatorar ao menos 2 etapas do pipeline utilizando PySpark, substituindo o código original em Pandas. Essa refatoração deve incluir leitura dos dados em formato Delta ou Parquet, ao menos 1 operação de join, ao menos 1 groupBy com agregação, ao menos 1 função de janela e escrita do resultado em formato Delta ou Parquet. O grupo também deverá comparar o tempo de execução entre a versão Pandas e a versão PySpark em ao menos uma das etapas refatoradas."
+
+### Checklist de Conformidade
+
+| Requisito | Status | Evidência |
+|-----------|--------|-----------|
+| Leitura em Parquet | ✅ | `spark.read.parquet(...)` nas células Bronze, Prata, Ouro, ML |
+| Operação de Join | ✅ | `df_incidentes.join(df_financeiro, on="incident_id", how="inner")` na célula Prata |
+| **groupBy com agregação (PySpark)** | ✅ **ADICIONADO** | `df_gb.groupBy("industry_primary").agg(F.count(...), F.mean(...), F.max(...))` na célula de refatoração |
+| **Função de janela (Window)** | ✅ **ADICIONADO** | `df_w.withColumn("rank_in_industry", F.row_number().over(Window.partitionBy("industry_primary").orderBy(F.desc("total_loss_usd"))))` na célula de refatoração |
+| Escrita em Parquet | ✅ | `df_bronze.write.mode("overwrite").parquet(...)` nas células Bronze, Prata |
+| **Comparação Pandas vs PySpark** | ✅ **ADICIONADO** | INNER JOIN executado em ambos os frameworks com medição de tempo |
+
+### 1. groupBy com Agregação (PySpark)
+
+**Código:**
+```python
+agregacao = df_gb.groupBy("industry_primary").agg(
+    F.count(F.lit(1)).alias("num_incidentes"),
+    F.mean("total_loss_usd").alias("perda_media"),
+    F.max("total_loss_usd").alias("perda_maxima"),
+    F.mean("company_revenue_usd").alias("receita_media")
+).orderBy(F.desc("num_incidentes"))
+```
+
+**Resultado (Top 5 setores):**
+
+| Indústria | Incidentes | Perda Média | Perda Máxima |
+|-----------|:----------:|:-----------:|:------------:|
+| 62 (Saúde) | 127 | R$ 44,2M | R$ 575,0M |
+| 51 (Tecnologia) | 119 | R$ 101,3M | R$ 1,79B |
+| 52 (Finanças) | 115 | R$ 64,5M | R$ 962,2M |
+| 44-45 (Varejo) | 73 | R$ 48,5M | R$ 387,8M |
+| 31-33 (Manufatura) | 71 | R$ 94,8M | R$ 2,63B |
+
+**Interpretação:** O groupBy em PySpark processou as 778 linhas sem necessidade de converter para pandas. Cada setor teve sua perda média calculada diretamente no motor Spark SQL. Foram encontrados 20 setores distintos.
+
+### 2. Função de Janela (Window)
+
+**Código:**
+```python
+window_spec = Window.partitionBy("industry_primary").orderBy(F.desc("total_loss_usd"))
+df_com_rank = df_w.withColumn("rank_in_industry", F.row_number().over(window_spec))
+```
+
+**Resultado:** Para cada setor, os incidentes foram ranqueados do maior para o menor prejuízo. O top 1 de cada setor representa o incidente mais caro daquele segmento. Exemplos:
+- Setor 51 (Tecnologia): maior perda foi R$ 1,79B (empresa em Israel)
+- Setor 52 (Finanças): maior perda foi R$ 962,2M (empresa na Austrália)
+- Setor 31-33 (Manufatura): maior perda foi R$ 2,63B (empresa nos EUA)
+
+**Interpretação:** A window function permitiu criar um ranking intra-setor sem agrupar os dados — cada linha mantém sua identidade mas ganha uma posição relativa dentro do seu grupo. Isso é útil para análises como "top 3 incidentes mais caros de cada setor".
+
+### 3. Comparação Pandas vs PySpark
+
+**Operação testada:** INNER JOIN entre `incidents_master` (850 linhas) e `financial_impact` (778 linhas) pela coluna `incident_id`.
+
+| Framework | Tempo | Linhas Resultantes |
+|-----------|:-----:|:------------------:|
+| **PySpark** | 0,3161s | 778 |
+| **Pandas** | 0,0158s | 778 |
+| **Proporção** | **20× mais lento** | — |
+
+**Por que PySpark foi mais lento?**
+- O dataset tem apenas 778-850 linhas — o overhead de iniciar o SparkContext (JVM, scheduler, planejador de consultas) domina o tempo total
+- Pandas opera em memória com numpy (C otimizado) sem nenhum overhead de framework
+- PySpark foi projetado para datasets de terabytes, onde este overhead inicial é amortizado
+
+**Discussão dos ganhos observados:**
+- Para datasets pequenos (<100K linhas), **Pandas é sempre mais rápido** que PySpark em operações simples (join, groupBy)
+- PySpark **ganha em escalabilidade**: o mesmo join executaria em segundos num cluster de 10 nós com 100TB de dados, enquanto Pandas simplesmente não conseguiria processar
+- A refatoração com PySpark é um **investimento em escalabilidade**, não em performance imediata
+- O join em PySpark (0,32s) ainda é **aceitável** mesmo para 778 linhas — o problema não é o join em si, mas o setup do SparkContext que leva ~3-5s antes da primeira operação
+
+### Código da Comparação
+
+```python
+# PySpark join
+t_ps_start = time.time()
+df_join_ps = df_inc_ps.join(df_fin_ps, on="incident_id", how="inner")
+n_ps = df_join_ps.count()
+t_pyspark = time.time() - t_ps_start
+
+# Pandas join (mesma operação)
+t_pd_start = time.time()
+df_join_pd = df_inc_pd.merge(df_fin_pd, on="incident_id", how="inner")
+n_pd = len(df_join_pd)
+t_pandas = time.time() - t_pd_start
+```
+
+### Conclusão
+
+Todos os requisitos de refatoração PySpark do `texto.md` foram atendidos:
+- **Leitura Parquet** ✅ — lido diretamente das camadas Bronze e Prata
+- **Join** ✅ — INNER JOIN entre incidents_master e financial_impact
+- **groupBy com agregação** ✅ — PySpark puro, sem `.toPandas()`
+- **Função de janela** ✅ — `row_number()` com `Window.partitionBy().orderBy()`
+- **Escrita Parquet** ✅ — resultados salvos nas camadas Bronze e Prata
+- **Comparação Pandas vs PySpark** ✅ — mesmo INNER JOIN medido em ambos os frameworks
+
+As células de refatoração foram adicionadas aos notebooks `pipeline_pyspark.ipynb` e `pipeline_pyspark_numba.ipynb` e executadas com sucesso.
 
 ---
 
