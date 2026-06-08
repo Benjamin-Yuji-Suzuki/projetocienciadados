@@ -431,6 +431,7 @@ Isso é mais robusto que a importância Gini nativa (que tende a favorecer featu
 | `graficos/feature_importance.svg` | Gráfico de importância |
 | `graficos/matriz_confusao.svg` | Matriz do melhor modelo |
 | `graficos/comparacao_previsoes.svg` | Comparação visual entre modelos |
+| `graficos/arvore_decisao.svg` | Estrutura da árvore de decisão |
 | `modelos/modelo_modelo1_gini_depth5.json` | Modelo 1 serializado (com métricas) |
 | `modelos/modelo_modelo2_entropy_depth10.json` | Modelo 2 serializado |
 
@@ -806,6 +807,7 @@ projeto_rust/
 │   ├── feature_importance.svg
 │   ├── matriz_confusao.svg
 │   ├── comparacao_previsoes.svg
+│   ├── arvore_decisao.svg
 │   └── dashboard.html
 ├── previsoes/              # CSVs de predição
 │   ├── previsoes_modelo1.csv
@@ -826,7 +828,9 @@ projeto_rust/
 │   └── explicacoes.rs
 ├── docs/
 │   ├── data_lineage.md
-│   └── relatorio_qualidade.md
+│   ├── relatorio_qualidade.md
+│   ├── tabela_transformacoes.md
+│   └── checklist_anti_leakage.md
 └── README.md
 ```
 
