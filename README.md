@@ -82,18 +82,18 @@ CSV (camada inicial)
 ### 6. Benchmark de Performance
 | Estágio | Rust | PySpark | PySpark+Numba | Rust vs PySpark |
 |---------|:---:|:-------:|:-------------:|:---------------:|
-| Bronze | 0.05s | 4.16s | 4.26s | **~77× mais rápido** |
-| Prata | 0.01s | 0.87s | 0.85s | **~96× mais rápido** |
-| EDA | 0.003s | 1.00s | 1.05s | **~332× mais rápido** |
-| Ouro | 0.02s | 0.17s | 0.75s | **~10× mais rápido** |
-| ML | 0.03s | 0.02s | 0.02s | *(mesmo engine)* |
-| **Total** | **0.12s** | **6.22s** | **6.93s** | **~53× mais rápido** |
+| Bronze | 0.07s | 4.16s | 4.26s | **~58× mais rápido** |
+| Prata | 0.01s | 0.87s | 0.85s | **~75× mais rápido** |
+| EDA | 0.004s | 1.00s | 1.05s | **~242× mais rápido** |
+| Ouro | 0.02s | 0.17s | 0.75s | **~9× mais rápido** |
+| ML | 0.06s | 0.02s | 0.02s | *(mesmo engine)* |
+| **Total** | **0.17s** | **6.22s** | **6.93s** | **~37× mais rápido** |
 
 ### 7. Entregáveis Gerados
 - 📁 **camada_bronze/** — 3 arquivos Parquet com metadados de auditoria
 - 📁 **camada_prata/** — dataset integrado e limpo
 - 📁 **camada_ouro/** — dataset ML-ready (pré-processado)
-- 📊 **graficos/** — 8 gráficos (SVG ou PNG)
+- 📊 **graficos/** — 9 gráficos (SVG ou PNG) + dashboard.html
 - 📈 **previsoes/** — CSVs com previsões e feature importance
 - 🤖 **modelos/** — modelos serializados em JSON
 - 📓 **pipeline_pyspark.ipynb** — notebook completo executável
@@ -102,6 +102,8 @@ CSV (camada inicial)
 - 📄 **RELATORIO_COMPLETO.md** — relatório técnico de 895 linhas
 - 📄 **docs/data_lineage.md** — linhagem dos dados
 - 📄 **docs/relatorio_qualidade.md** — relatório de qualidade
+- 📄 **docs/tabela_transformacoes.md** — tabela de transformações da Ouro
+- 📄 **docs/checklist_anti_leakage.md** — checklist anti-leakage
 
 ---
 
@@ -111,9 +113,7 @@ CSV (camada inicial)
 
 | Item | Detalhe | Onde falta |
 |------|---------|-----------|
-| **Visualização da árvore de decisão** | O SmartCore (Rust) não expõe a estrutura interna da árvore para plotagem. O sklearn (PySpark) gera a figura inline no notebook, mas não salva em arquivo. | Rust (SmartCore) |
 | **Leitura em formato Delta** | A refatoração PySpark lê de Parquet, não de Delta Lake (formato pedido como alternativa). | PySpark |
-| **Checklist anti-leakage em arquivo separado** | A remoção de colunas vazadas está documentada no relatório, mas não como arquivo autônomo. | Geral |
 
 ### 🟡 Melhorias desejáveis
 
@@ -131,6 +131,7 @@ CSV (camada inicial)
 | **Plotters (Rust)** | Substituído por geração manual de SVG para evitar dependência de `libfontconfig-dev` (sem sudo no ambiente). |
 | **Gini feature importance** | SmartCore não expõe `feature_importances_`. Implementado Permutation Importance manual (5 repetições), que é mais robusto. |
 | **Numba em produção** | Para dataset pequeno (778 linhas), Numba é mais lento que numpy puro (overhead de JIT). Implementado como prova de conceito para escalabilidade. |
+| **Árvore de decisão via SmartCore** | SmartCore não expõe a estrutura interna dos nós. Gerado SVG representativo com features ordenadas por Permutation Importance e thresholds estimados por medianas do treino. |
 
 ---
 
@@ -185,10 +186,10 @@ projeto_rust/graficos/dashboard.html
 
 | Modelo | Camada | Acurácia | Precisão | Recall | F1-Score |
 |--------|--------|:-------:|:--------:|:-----:|:--------:|
-| Gini d=5 | Prata | 55.77% | 47.83% | 50.00% | 48.89% |
-| Gini d=5 | **Ouro** | **58.33%** | **51.85%** | **51.85%** | **51.85%** |
-| Entropy d=10 | Prata | 50.00% | 37.50% | 45.00% | 40.91% |
-| Entropy d=10 | **Ouro** | **52.56%** | **41.03%** | **51.28%** | **45.59%** |
+| Gini d=5 | Prata | 56.41% | 59.26% | 41.03% | 48.48% |
+| Gini d=5 | **Ouro** | 58.33% | 51.85% | 51.85% | **51.85%** |
+| Entropy d=10 | Prata | 51.28% | 51.61% | 41.03% | 45.71% |
+| Entropy d=10 | **Ouro** | **56.41%** | **51.85%** | **51.28%** | **51.43%** |
 
 > O pré-processamento da camada Ouro melhora o F1 em ~5 pontos percentuais em relação aos dados crus da Prata.
 
@@ -196,7 +197,7 @@ projeto_rust/graficos/dashboard.html
 
 ## 🧠 Lições Aprendidas
 
-1. **Rust é ~53× mais rápido que PySpark** para datasets pequenos — sem JVM, sem serialização
+1. **Rust é ~37× mais rápido que PySpark** para datasets pequenos — sem JVM, sem serialização
 2. **Numba não compensa em datasets pequenos** — overhead de compilação JIT domina
 3. **Ouro > Prata** — pré-processamento adequado melhora métricas mesmo em modelos simples
 4. **Permutation Importance > Gini** — mais confiável para interpretar features

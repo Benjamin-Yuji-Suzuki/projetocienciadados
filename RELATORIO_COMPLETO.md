@@ -710,22 +710,26 @@ df_p = df_p.withColumn("confidence_tier", F.col("confidence_tier").cast(DoubleTy
 
 ## 14. Anti-Leakage Checklist
 
+> ✅ Versão completa e atualizada em [`docs/checklist_anti_leakage.md`](projeto_rust/docs/checklist_anti_leakage.md) (15 requisitos + fluxograma fit/transform).
+
 | Requisito | Status | Evidência |
 |-----------|--------|-----------|
 | `direct_loss_usd` removida? | ✅ | Componente direto do target (soma direta em total_loss_usd) |
 | `disclosure_date` removida? | ✅ | Data futura (não disponível na predição) |
 | `downtime_hours` removida? | ✅ | Só conhecida após o incidente |
+| `data_compromised_records` removida? | ✅ | Só conhecida após investigação |
 | `company_name` removida? | ✅ | Identificador único (overfitting) |
 | `stock_ticker` removida? | ✅ | Identificador único (overfitting) |
 | `incident_id` removida? | ✅ | ID sequencial (não generalizável) |
-| Split treino/teste antes do FIT? | ✅ | 80/20 dividido ANTES de chamar `fit()` |
-| FIT só vê dados de treino? | ✅ | `fit()` recebe exclusivamente `df_treino` |
-| TRANSFORM usa params do treino? | ✅ | Mesmos parâmetros aplicados em treino e teste |
 | `notes` removida? | ✅ | Texto livre não estruturado |
 | `created_at`/`updated_at` removidas? | ✅ | Metadados operacionais |
 | `industry_secondary` removida? | ✅ | Redundante |
 | `attack_vector_secondary` removida? | ✅ | Redundante |
 | `review_flag` removida? | ✅ | Pós-processamento (não disponível) |
+| Metadados Bronze removidos? | ✅ | Auditoria, não preditivos |
+| Split treino/teste antes do FIT? | ✅ | 80/20 dividido ANTES de chamar `fit()` |
+| FIT só vê dados de treino? | ✅ | `fit()` recebe exclusivamente `df_treino` |
+| TRANSFORM usa params do treino? | ✅ | Mesmos parâmetros aplicados em treino e teste |
 
 ---
 
