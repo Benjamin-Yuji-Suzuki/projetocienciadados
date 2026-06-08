@@ -1,3 +1,3 @@
 operacao,framework,tempo_segundos
-INNER JOIN,PySpark,0.339
-INNER JOIN,Pandas,0.0571
+INNER JOIN,PySpark,0.5029
+INNER JOIN,Pandas,0.0346
