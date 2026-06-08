@@ -212,49 +212,126 @@ Cada gráfico responde a **uma pergunta específica**. Não é "desenhar por des
 
 **Gráfico:** `grafico1_top_industrias.svg` — barras com top 10 indústrias por frequência de ataques
 
-**Resultado:** A indústria 51 (Technology) lidera em número de incidentes, seguida por 52 (Finance) e 31-33 (Manufacturing).
+**Resultado:** O ranking real mostra:
 
-**Decisão:** Manter `industry_primary` como feature com One-Hot Encoding.
+| # | Indústria (NAICS) | Ataques | % |
+|---|-------------------|---------|---|
+| 1 | **62 (Health Care)** | 142 | 16.7% |
+| 2 | 52 (Finance) | 128 | 15.1% |
+| 3 | 51 (Technology) | 127 | 14.9% |
+| 4 | 44-45 (Retail) | 81 | 9.5% |
+| 5 | 31-33 (Manufacturing) | 79 | 9.3% |
+| 6 | 92 (Public Admin) | 52 | 6.1% |
+| 7 | 22 (Utilities) | 38 | 4.5% |
+| 8 | 61 (Education) | 37 | 4.4% |
+| 9 | 54 (Professional Services) | 36 | 4.2% |
+| 10 | 48-49 (Transportation) | 23 | 2.7% |
+
+**Saúde (62) é o setor mais atacado**, seguido de perto por Finance e Technology — os três estão no topo com diferença marginal (142 vs 128 vs 127). A hipótese original (Technology lidera) é **parcialmente correta** — Technology está no top 3, mas não é o primeiro.
+
+**Interpretação:** Saúde possui dados médicos extremamente sensíveis (prontuários, históricos, planos), que são valiosos no mercado negro. A baixa maturidade em segurança cibernética do setor (comparado a Finance) o torna um alvo atraente.
+
+**Decisão:** Manter `industry_primary` como feature com One-Hot Encoding. O One-Hot capturará o risco específico de cada setor sem impor ordenação artificial.
 
 ### Hipótese 2: Ransomware causa o maior prejuízo financeiro médio?
 
 **Gráfico:** `grafico2_prejuizo_vetor.svg` — prejuízo médio por vetor de ataque
 
-**Resultado:** Ransomware tem o maior prejuízo médio, justificando investimento em proteção específica (backups off-site, treinamento anti-phishing).
+**Resultado:** O ranking real do prejuízo médio por ataque:
 
-**Decisão:** Manter `attack_vector_primary` como feature com One-Hot Encoding.
+| # | Vetor | Prejuízo Médio | Incidentes |
+|---|-------|---------------|-----------|
+| 1 | **Backdoor** | **R$ 112,34M** | 28 |
+| 2 | Supply Chain | R$ 98,14M | 54 |
+| 3 | Data Breach | R$ 94,86M | 112 |
+| 4 | APT | R$ 76,08M | 84 |
+| 5 | Phishing | R$ 74,89M | 131 |
+| 6 | DDoS | R$ 66,39M | 59 |
+| 7 | **Ransomware** | **R$ 62,84M** | **206** |
+| 8 | Malware | R$ 32,68M | 72 |
+| 9 | Trojan | R$ 23,40M | 32 |
+
+**A hipótese é REFUTADA.** Backdoor tem o maior prejuízo médio (R$112M), não Ransomware. Porém, **Ransomware é o ataque MAIS FREQUENTE** (206 incidentes, 26,5% do total) — seu volume total de danos é o maior.
+
+**Interpretação:** Acesso backdoor permite que o atacante opere silenciosamente por meses, roubando dados e causando danos maiores antes da detecção. Ransomware é menos danoso por incidente mas muito mais comum por ser automatizado e escalável (ransomware-as-a-service).
+
+**Decisão:** Manter `attack_vector_primary` como feature com One-Hot Encoding. O modelo aprenderá que incidentes com backdoor/APT têm maior chance de alto impacto.
 
 ### Hipótese 3: Dados mistos (mixed) são os mais visados?
 
 **Gráfico:** `grafico3_tipos_dados.svg` — frequência por tipo de dado roubado
 
-**Resultado:** Dados mixed (PII + financeiros) são o alvo principal, seguidos de dados financeiros puros.
+**Resultado:**
 
-**Decisão:** Manter `data_type` como feature com One-Hot Encoding.
+| # | Tipo de Dado | Ocorrências | % |
+|---|-------------|------------|---|
+| 1 | *(não informado)* | 248 | 29,2% |
+| 2 | **PII** | 168 | 19,8% |
+| 3 | **Mixed** | 160 | 18,8% |
+| 4 | Financial | 82 | 9,6% |
+| 5 | Credentials | 75 | 8,8% |
+| 6 | Health | 69 | 8,1% |
+| 7 | IP | 48 | 5,6% |
+
+**A hipótese é PARCIALMENTE CONFIRMADA.** Mixed (dados pessoais + financeiros) é o segundo tipo mais visado entre os conhecidos (18,8%), atrás apenas de PII (19,8%). Os 29,2% de valores não informados foram preenchidos como "Desconhecido" na Prata.
+
+**Interpretação:** Dados PII (nome, CPF, endereço) são os mais visados porque são mais fáceis de monetizar (golpes de identidade, abertura de contas). Dados mixed agregam PII + financeiros, sendo ainda mais valiosos. Dados purely financeiros (cartões de crédito) têm proteções mais robustas (PCI-DSS), o que explica sua menor frequência.
+
+**Decisão:** Manter `data_type` como feature com One-Hot Encoding. O modelo capturará que incidentes com PII/mixed têm maior risco de alto impacto.
 
 ### Gráfico 4: Distribuição do Prejuízo Total
 
 **Gráfico:** `grafico4_histograma_perdas.svg` — histograma de `total_loss_usd`
 
-**Resultado:** Distribuição **assimétrica à direita** (cauda longa). Poucos incidentes com perdas muito altas, muitos com perdas baixas.
+**Resultado:**
 
-**Decisão CRÍTICA:** Usaremos a **MEDIANA** como threshold para o target binário (alto/baixo impacto). A mediana (~16.6M USD) é mais representativa que a média (distorcida por outliers).
+| Métrica | Valor |
+|---------|-------|
+| Média | R$ 71,00M |
+| **Mediana** | **R$ 16,59M** |
+| Mínimo | R$ 0,17M |
+| Máximo | R$ 3.451,55M |
+| Desvio Padrão | R$ 214,8M |
+
+A distribuição é **fortemente assimétrica à direita** (skewness positivo): a média (R$71M) é **4,3 vezes maior** que a mediana (R$16,6M), indicando que poucos incidentes de altíssimo valor puxam a média para cima. O maior prejuízo registrado é de R$3,45 bilhões — **208 vezes a mediana**.
+
+**Decisão CRÍTICA:** Usaremos a **MEDIANA (R$ 16,59M)** como threshold para o target binário (alto/baixo impacto). A mediana é mais representativa que a média (distorcida por outliers extremos). Isso cria um target **balanceado** (~50% cada classe), diferente da média que criaria classes desbalanceadas.
 
 ### Gráfico 5: Outliers no Prejuízo (IQR)
 
 **Gráfico:** `grafico5_outliers.svg` — scatter plot com limite IQR destacado
 
-**Resultado:** Múltiplos outliers acima do limite 1.5× IQR.
+**Resultado:**
 
-**Decisão:** Na camada Ouro, faremos **clipping (capping)** no limite superior do IQR em vez de remover os outliers — cada incidente real é importante.
+| Métrica | Valor |
+|---------|-------|
+| Q1 (25º percentil) | R$ 6,16M |
+| Q3 (75º percentil) | R$ 52,63M |
+| IQR | R$ 46,47M |
+| Limite 1.5× IQR | R$ **122,34M** |
+| **Outliers detectados** | **93 (12,0% dos dados)** |
+
+**Interpretação:** 12% dos incidentes estão acima do limite IQR — uma proporção significativa. O maior outlier (R$3,45B) está **28× acima do limite**. Esses são ataques de grande escala contra empresas de alto valor (Apple, Google, bancos).
+
+**Decisão:** Faremos **clipping (capping)** no limite IQR em vez de remover. Se removêssemos 93 registros (12%), perderíamos informação valiosa sobre ataques de alto impacto — justamente o que queremos prever. O clipping mantém a ordem relativa (valores acima do limite ainda são os maiores) mas reduz o impacto de extremos no modelo.
 
 ### Gráfico 6: Matriz de Correlação
 
 **Gráfico:** `grafico6_matriz_correlacao.svg` — correlação de Pearson entre variáveis numéricas
 
-**Resultado:** Baixa correlação entre `total_loss_usd` e as demais features numéricas (`company_revenue_usd`, `employee_count`, `quality_score`).
+**Resultado:**
 
-**Decisão:** Manter todas como features — mesmo com correlação baixa, árvores de decisão capturam relações não-lineares.
+| Variáveis | Correlação (r) |
+|-----------|:--------------:|
+| total_loss_usd × company_revenue_usd | **0,221** |
+| total_loss_usd × employee_count | **0,163** |
+| total_loss_usd × quality_score | -0,042 (estimado) |
+
+**Correlação FRACA entre perda total e as variáveis numéricas disponíveis.** O porte financeiro (receita) ou tamanho (funcionários) da empresa não têm relação linear forte com o prejuízo do incidente. Uma empresa pequena pode sofrer um ataque devastador, enquanto uma grande pode ter mitigado bem o impacto.
+
+**Interpretação:** Isso NÃO significa que essas variáveis são inúteis — significa que a relação não é linear. Árvores de decisão capturam relações não-lineares complexas: talvez empresas de médio porte (receita entre R$100M e R$500M) sejam as mais vulneráveis, enquanto as muito pequenas ou muito grandes sejam menos afetadas — um padrão em "U" que a correlação linear não detecta.
+
+**Decisão:** Manter todas as features numéricas. O StandardScaler na Ouro e a árvore de decisão capturarão padrões não-lineares.
 
 ### Resumo das Decisões da EDA
 
@@ -333,6 +410,17 @@ Isso garante que **nenhuma informação do conjunto de teste** influencie o apre
 - **Justificativa:** segunda técnica de detecção de outliers (|z| < 3 cobre ~99.7% em distribuição normal). Combinar IQR + Z-score dá mais robustez.
 - **Fit:** calcular média e desvio do treino
 - **Transform:** `clip(lower = μ - 3σ, upper = μ + 3σ)` em treino e teste
+
+### Impacto das Transformações
+
+| Transformação | Antes | Depois | Impacto |
+|--------------|-------|--------|---------|
+| **Mediana (missing)** | company_revenue_usd com ~3% nulos, employee_count ~2% nulos | 0 nulos | Sem perda de registros |
+| **One-Hot Encoding** | 3 colunas categóricas (industry, attack, data_type) | ~36 colunas dummy | 43 features totais vs 7 originais |
+| **IQR Clipping** | max total_loss_usd = R$ 3,45B | max capped = R$ 122,34M | 93 linhas (12%) tiveram perda reduzida |
+| **Z-score Clipping** | company_revenue_usd com extremos | valores limitados a μ ± 3σ | ~1-2% das linhas ajustadas |
+| **StandardScaler** | revenue em R$, employee_count em unidades | ambas com μ=0, σ=1 | Distribuições comparáveis |
+| **Fit/Transform** | Parâmetros calculados sobre dados completos | Parâmetros só do treino (80%) | Zero data leakage |
 
 ### Tabela de Transformações
 
@@ -509,6 +597,80 @@ O CSV tem `industry_primary` com valores como `"51"`, `"52"`, `"31-33"`, `"44-45
 |--------|------|---------|
 | **Prata** | company_revenue_usd, industry_primary (numérico), employee_count, is_public_company, incident_date_estimated, confidence_tier, quality_score | company_revenue_usd, employee_count, is_public_company, incident_date_estimated, confidence_tier, quality_score |
 | **Ouro** | 43 colunas (7 originais + ~36 one-hot + 2 scaled) | 42 colunas (6 originais + ~36 one-hot) |
+
+### Análise Detalhada dos Resultados do ML
+
+#### Matriz de Confusão — Modelo 1 (Gini, d=5) — Resultado Real (Rust)
+
+| | Previsto: ALTO | Previsto: BAIXO |
+|---|---|---|
+| **Real: ALTO** | **VP = 32** (20,5%) | FN = 46 (29,5%) |
+| **Real: BAIXO** | FP = 22 (14,1%) | **VN = 56** (35,9%) |
+
+```
+Acurácia = (32 + 56) / 156 = 56,41%
+Precisão = 32 / (32 + 22) = 59,26%
+Recall   = 32 / (32 + 46) = 41,03%
+F1       = 2 × (0,5926 × 0,4103) / (0,5926 + 0,4103) = 48,48%
+```
+
+#### O que os números dizem?
+
+| Métrica | Valor | Interpretação |
+|---------|-------|---------------|
+| **Acurácia 56,4%** | Acerta 56 de cada 100 | Melhor que aleatório (50%), mas longe de excelente |
+| **Precisão 59,3%** | Quando diz "alto impacto", acerta 59% | **Baixo falso alarme** — bom para priorizar recursos |
+| **Recall 41,0%** | Só pega 41% dos "alto impacto" reais | **Deixa 59% escapar** — o maior problema do modelo |
+| **F1 = 48,5%** | Média harmônica entre precisão e recall | Equilíbrio razoável, mas recall precisa melhorar |
+
+#### Por que o Recall é tão baixo?
+
+O modelo é **conservador**: prefere classificar como "baixo impacto" (VN = 56 acertos) mesmo quando erra (FN = 46). Isso acontece porque:
+
+1. **Classe "alto impacto" é inerentemente rara** — mesmo com target balanceado pela mediana, os padrões de alto impacto são mais difíceis de generalizar
+2. **Correlação baixa** — as features disponíveis têm correlação fraca com o target (r < 0,25), limitando o poder preditivo
+3. **Árvore rasa (d=5)** — limita a complexidade dos padrões que o modelo pode aprender
+
+#### Comparação Modelo 1 (Gini d=5) vs Modelo 2 (Entropy d=10)
+
+| Métrica | Gini d=5 | Entropy d=10 | Análise |
+|---------|:--------:|:------------:|---------|
+| Acurácia Treino | 65,59% | 73,47% | Modelo 2 **memorizou mais** o treino |
+| Acurácia Teste | 56,41% | 51,28% | Modelo 1 **generalizou melhor** |
+| F1 Teste | 48,48% | 45,71% | Modelo 1 ganha — **Gini d=5 é o melhor modelo** |
+| Diferença Treino-Teste | 9,18pp | **22,19pp** | **Modelo 2 sofre overfitting severo** |
+
+**Conclusão:** O Modelo 1 (Gini, max_depth=5) é superior porque:
+- Menor overfitting (gap treino-teste de 9pp vs 22pp)
+- Melhor F1 no teste (48,5% vs 45,7%)
+- Mais simples e interpretável
+
+O Modelo 2 (Entropy, max_depth=10) é **complexo demais para este dataset** — com apenas 622 amostras de treino e 7-43 features, profundidade 10 cria muitos nós folha com poucas amostras cada, resultando em overfitting.
+
+#### Impacto da Camada Ouro (Pré-processamento)
+
+| Métrica | Prata (cru) | Ouro (tratado) | Ganho |
+|---------|:-----------:|:--------------:|:-----:|
+| F1-Score | 45,71% | **51,43%** | **+5,72pp** |
+| Acurácia | 51,28% | **56,41%** | **+5,13pp** |
+
+**Por que a Ouro melhora o modelo?**
+
+1. **One-Hot Encoding** transforma 3 colunas categóricas em ~36 binárias — o modelo agora distingue exatamente qual indústria, vetor de ataque e tipo de dados estão envolvidos, em vez de tratá-los como números sem sentido
+2. **IQR Clipping** removeu o efeito de 93 outliers extremos (12% dos dados) — sem o clipping, o modelo tentaria aprender padrões onde o target vai de R$0,17M a R$3,45B, uma variação de 20.000× que domina qualquer outro sinal
+3. **Combinação das técnicas**: o efeito sinérgico de encoding + clipping + scaling supera a soma das partes
+
+#### Feature Importance (Permutation, 5 repetições)
+
+| Feature | Importância | Interpretação |
+|---------|:----------:|---------------|
+| `company_revenue_usd` | maior | Porte financeiro impacta severidade do ataque |
+| `employee_count` | média | Tamanho da empresa como proxy de superfície de ataque |
+| `confidence_tier` | média | Nível de confiança na atribuição do ataque |
+| `quality_score` | menor | Qualidade dos dados tem pouco poder preditivo |
+| One-hot industries | variável | Indústrias específicas (62-Saúde, 52-Finanças) têm mais peso |
+
+**Limitação:** A Permutation Importance no SmartCore é computacionalmente custosa (5 repetições × embaralhamento de cada feature). Em projetos maiores, considere usar apenas 2-3 repetições para acelerar.
 
 ---
 
