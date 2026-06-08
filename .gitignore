@@ -26,3 +26,6 @@ projeto_rust/camada_inicial/
 
 # Benchmark CSVs (regenerados a cada execução)
 comparacao_tempos/tempos_*.csv
+
+# Regras de negócio / especificação original do professor
+regras/
